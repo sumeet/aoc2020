@@ -8,7 +8,7 @@ let parseCell c =
     | '.' -> Inactive
     | _ -> failwith (sprintf "couldn't parse %A" c)
 
-type Point = int * int * int
+type Point = int * int * int * int
 
 let input = "..#..##.
 #.....##
@@ -24,14 +24,15 @@ let mutable pocket = Map.empty
 let parsedInput =
     for (y, line) in input.Split("\n") |> Array.indexed do
         for (x, char) in line.ToCharArray() |> Array.indexed do
-            pocket <- pocket.Add((x, y, 0), parseCell (char))
+            pocket <- pocket.Add((x, y, 0, 0), parseCell (char))
 
-let neighbors (x, y, z) =
+let neighbors (x, y, z, w) =
     seq {
         for dx in [ -1; 0; 1 ] do
             for dy in [ -1; 0; 1 ] do
                 for dz in [ -1; 0; 1 ] do
-                    if not ((dx, dy, dz) = (0, 0, 0)) then yield (x + dx, y + dy, z + dz)
+                    for dw in [-1; 0; 1] do
+                        if not ((dx, dy, dz, dw) = (0, 0, 0, 0)) then yield (x + dx, y + dy, z + dz, w + dw)
     }
 
 
