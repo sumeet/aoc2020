@@ -1,26 +1,25 @@
 use itertools::Itertools;
 use std::collections::HashMap;
-use std::convert::TryInto;
 use std::ops::RangeInclusive;
 
 type Ranges = [RangeInclusive<usize>; 2];
 
 fn main() {
-    let input = "class: 1-3 or 5-7
-row: 6-11 or 33-44
-seat: 13-40 or 45-50
+    let input = "class: 0-1 or 4-19
+row: 0-5 or 8-19
+seat: 0-13 or 16-19
 
 your ticket:
-7,1,14
+11,12,13
 
 nearby tickets:
-7,3,47
-40,4,50
-55,2,20
-38,6,12";
+3,9,18
+15,1,5
+5,14,9";
 
     let mut section = 1;
     let mut ranges_by_field: HashMap<&str, Ranges> = HashMap::new();
+    let mut our_ticket: Vec<usize> = vec![];
     let mut nearby_tickets: Vec<Vec<usize>> = vec![];
     for line in input.lines() {
         if line.trim() == "your ticket:" {
@@ -48,7 +47,7 @@ nearby tickets:
                     .unwrap();
                 ranges_by_field.insert(field_name, [range1, range2]);
             }
-            2 => {}
+            2 => our_ticket = line.split(",").map(|s| s.parse().unwrap()).collect(),
             3 => nearby_tickets.push(line.split(",").map(|s| s.parse().unwrap()).collect()),
             _ => unimplemented!(),
         }
@@ -64,7 +63,53 @@ nearby tickets:
         })
         .collect();
 
-    // .filter(|value| all_ranges().all(|r| !r.contains(value)))
-    // .sum();
-    println!("{:?}", valid_tickets);
+    let ticket_length = our_ticket.len();
+    let valid_tickets = &valid_tickets;
+
+    let hm = ranges_by_field
+        .iter()
+        .map(move |(field_name, [range_a, range_b])| {
+            (
+                field_name,
+                (0..ticket_length)
+                    .map(move |field_index| {
+                        valid_tickets
+                            .iter()
+                            .enumerate()
+                            .filter_map(move |(ticket_id, ticket)| {
+                                let field_value = ticket[field_index];
+                                if range_a.contains(&field_value) || range_b.contains(&field_value)
+                                {
+                                    Some(ticket_id)
+                                } else {
+                                    None
+                                }
+                            })
+                            .collect_vec()
+                    })
+                    .collect_vec(),
+            )
+        })
+        .collect::<HashMap<_, _>>();
+
+    let hm = hm
+        .iter()
+        .map(|(field_name, fields)| {
+            (
+                field_name,
+                fields
+                    .iter()
+                    .enumerate()
+                    .filter_map(|(field_id, matching_ticket_ids)| {
+                        if matching_ticket_ids.len() == ticket_length {
+                            Some(field_id)
+                        } else {
+                            None
+                        }
+                    })
+                    .collect_vec(),
+            )
+        })
+        .collect::<HashMap<_, _>>();
+    println!("{:?}", hm);
 }
