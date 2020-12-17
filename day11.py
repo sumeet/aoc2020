@@ -113,18 +113,33 @@ def adjacents(map, point):
         x2, y2 = p2
         return (x1 + x2), (y1 + y2)
 
-    return filter(None, (map.get(add(point, cand)) for cand in
-                         [(0, -1), (0, 1), (-1, 0), (1, 0),
-                          # diagonals
-                          (-1, -1), (1, 1), (1, -1), (-1, 1)]))
+    return filter(
+        None,
+        (
+            map.get(add(point, cand))
+            for cand in [
+                (0, -1),
+                (0, 1),
+                (-1, 0),
+                (1, 0),
+                # diagonals
+                (-1, -1),
+                (1, 1),
+                (1, -1),
+                (-1, 1),
+            ]
+        ),
+    )
+
 
 def printmap(map):
     import itertools
+
     for iy in itertools.count():
         if not map:
             return
         fromthisline = sorted((x, val) for (x, y), val in map.items() if y == iy)
-        print(''.join(val for _, val in fromthisline))
+        print("".join(val for _, val in fromthisline))
         map = {(x, y): val for (x, y), val in map.items() if y != iy}
 
 
@@ -134,13 +149,14 @@ for y, line in enumerate(input.split()):
         seatmap[(x, y)] = seat
 
 
-#printmap(seatmap)
-#newseatmap = transform(seatmap)
-#print("\n\n\n")
-#printmap(newseatmap)
-#newseatmap = transform(newseatmap)
-#print("\n\n\n")
-#printmap(newseatmap)
+# printmap(seatmap)
+# newseatmap = transform(seatmap)
+# print("\n\n\n")
+# printmap(newseatmap)
+# newseatmap = transform(newseatmap)
+# print("\n\n\n")
+# printmap(newseatmap)
+
 
 def part1():
     seatmap = {}
@@ -166,10 +182,17 @@ def num_occupied_adjacents2(map, point):
 
     acc = 0
 
-    all_directions = [(0, -1), (0, 1), (-1, 0), (1, 0),
-                          # diagonals
-                      (-1, -1), (1, 1), (1, -1), (-1, 1)]
-
+    all_directions = [
+        (0, -1),
+        (0, 1),
+        (-1, 0),
+        (1, 0),
+        # diagonals
+        (-1, -1),
+        (1, 1),
+        (1, -1),
+        (-1, 1),
+    ]
 
     for direction in all_directions:
         searchpoint = point
@@ -179,8 +202,8 @@ def num_occupied_adjacents2(map, point):
             nextseat = map.get(searchpoint)
             if nextseat == "#":
                 acc += 1
-            if nextseat != '.':
-                done_with_direction = True
+            if nextseat != ".":
+                should_continue = False
 
     return acc
 
@@ -194,8 +217,21 @@ def transform2(oldmap):
             newmap[point] = "L"
     return newmap
 
+
+testmap = """\
+L.LL.LL.LL
+LLLLLLL.LL
+L.L.L..L..
+LLLL.LL.LL
+L.LL.LL.LL
+L.LLLLL.LL
+..L.L.....
+LLLLLLLLLL
+L.LLLLLL.L
+L.LLLLL.LL"""
+
 seatmap = {}
-for y, line in enumerate(input.strip().split()):
+for y, line in enumerate(testmap.strip().split()):
     for x, seat in enumerate(line.strip()):
         seatmap[(x, y)] = seat
 
