@@ -1,0 +1,13 @@
+name: day19
+version: 0.1.0
+
+authors:
+  - your-name-here <your-email-here>
+
+targets:
+  day19:
+    main: src/day19.cr
+
+crystal: 0.35.1
+
+license: MIT

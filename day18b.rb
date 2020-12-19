@@ -1,4 +1,4 @@
-INPUT = "8 + ((9 * 7) + 2) + (4 * (9 * 3 * 9 + 3 + 8) + 6 + 5 + 8)
+input = "8 + ((9 * 7) + 2) + (4 * (9 * 3 * 9 + 3 + 8) + 6 + 5 + 8)
 7 + 5 * 3 + (9 * 9 * 3)
 4 * (4 * 8 + 3 + 4 * 2 + (8 + 2 * 6 + 6)) + (6 + 9 + 8) * 8 + (6 + 6 * (2 * 9) * 3 + (9 * 3 * 5 * 4) * 7)
 ((4 * 3) * 2 * 2) * 4 * 5 * 5 * 7 * ((3 * 3 + 6 * 8) * 7 * 3 * 9 + (7 * 6 + 9) * (4 * 3))
@@ -372,7 +372,18 @@ INPUT = "8 + ((9 * 7) + 2) + (4 * (9 * 3 * 9 + 3 + 8) + 6 + 5 + 8)
 3 + 3 * 6 * 2 * (9 * 9) * 6
 3 * 8 + (7 + 7 + (8 + 3) + (7 * 6 * 2) + 3)"
 
-⊕(x, y) = x * y
-INPUT = replace(INPUT, "*" => "⊕")
-exec = eval ∘ Meta.parse
-@show sum(exec.(split(INPUT, "\n")))
+class Integer
+  alias add +
+  alias mul *
+
+  def *(other)
+    self.add(other)
+  end
+
+  def +(other)
+    self.mul(other)
+  end
+end
+
+p input.gsub("*", "buttninja").gsub("+", "*").gsub("buttninja", "+")
+       .lines.map(&method(:eval)).sum

@@ -1,0 +1,13 @@
+name: day17_cr
+version: 0.1.0
+
+authors:
+  - your-name-here <your-email-here>
+
+targets:
+  day17_cr:
+    main: src/day17_cr.cr
+
+crystal: 0.35.1
+
+license: MIT
