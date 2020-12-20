@@ -1,7 +1,11 @@
+use arcstr::core::fmt::Binary;
 use arcstr::Substr;
+use binary_heap_plus::BinaryHeap;
 use itertools::Itertools;
 use rayon::iter::ParallelIterator;
 use rayon::prelude::IntoParallelIterator;
+use std::cmp::Reverse;
+use std::iter::once;
 use std::sync::Arc;
 use std::time::{Duration, SystemTime};
 
@@ -42,6 +46,11 @@ impl MatchResult {
             MatchResult::Branches(_) => unimplemented!(),
         }
     }
+}
+
+struct QItem {
+    remaining: Substr,
+    series_index: usize,
 }
 
 fn matches_rule(
@@ -88,19 +97,41 @@ fn matches_rule(
             }
         }
         Rule::Series(inner_rules) => {
-            let mut remaining_str = string_to_match;
-            for rule in inner_rules {
+            let mut maxheap: BinaryHeap<_, _> =
+                BinaryHeap::new_by_key(|qitem: &QItem| qitem.series_index);
+            maxheap.push(QItem {
+                remaining: string_to_match,
+                series_index: 0,
+            });
+            while let Some(qitem) = maxheap.pop() {
+                if qitem.series_index == inner_rules.len() {
+                    // TODO: come back here?
+                    return MatchResult::Remaining(qitem.remaining);
+                }
+
+                let rule = &inner_rules[qitem.series_index];
                 let inner_match = matches_rule(
                     Arc::clone(&all_rules),
                     Arc::clone(rule),
-                    remaining_str.substr(..),
+                    qitem.remaining.substr(..),
                 );
                 match inner_match {
-                    MatchResult::Remaining(substr) => remaining_str = substr,
-                    MatchResult::RuleDidNotMatch => return inner_match,
+                    MatchResult::Remaining(substr) => maxheap.push(QItem {
+                        remaining: substr,
+                        series_index: qitem.series_index + 1,
+                    }),
+                    MatchResult::Branches((substr_a, substr_b)) => {
+                        for substr in once(substr_a).chain(once(substr_b)).into_iter() {
+                            maxheap.push(QItem {
+                                remaining: substr,
+                                series_index: qitem.series_index + 1,
+                            });
+                        }
+                    }
+                    MatchResult::RuleDidNotMatch => (),
                 }
             }
-            MatchResult::Remaining(remaining_str)
+            MatchResult::RuleDidNotMatch
         }
     }
 }
