@@ -1,5 +1,7 @@
-use arcstr::{ArcStr, Substr};
+use arcstr::Substr;
 use itertools::Itertools;
+use rayon::iter::ParallelIterator;
+use rayon::prelude::IntoParallelIterator;
 use std::sync::Arc;
 use std::time::{Duration, SystemTime};
 
@@ -25,10 +27,11 @@ fn parse_rule(rulestring: &str) -> Arc<Rule> {
     Arc::new(rule)
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 enum MatchResult {
     Remaining(Substr),
     RuleDidNotMatch,
+    Branches((Substr, Substr)),
 }
 
 impl MatchResult {
@@ -36,6 +39,7 @@ impl MatchResult {
         match self {
             MatchResult::Remaining(substr) => substr.is_empty(),
             MatchResult::RuleDidNotMatch => false,
+            MatchResult::Branches(_) => unimplemented!(),
         }
     }
 }
@@ -61,7 +65,7 @@ fn matches_rule(
         Rule::Or(inner_rules) => {
             // let start_time = SystemTime::now();
             // let timeout = Duration::from_millis(10);
-            inner_rules
+            let matches = inner_rules
                 .iter()
                 .map(|inner_rule| {
                     matches_rule(
@@ -70,8 +74,18 @@ fn matches_rule(
                         string_to_match.substr(..),
                     )
                 })
-                .find(|result| matches!(result, MatchResult::Remaining(_)))
-                .unwrap_or(MatchResult::RuleDidNotMatch)
+                .filter_map(|result| match result {
+                    MatchResult::Remaining(remaining) => Some(remaining),
+                    _ => None,
+                })
+                .collect::<Vec<_>>();
+            if matches.len() == 2 {
+                MatchResult::Branches((matches[0].substr(..), matches[1].substr(..)))
+            } else if matches.len() == 1 {
+                MatchResult::Remaining(matches[0].substr(..))
+            } else {
+                MatchResult::RuleDidNotMatch
+            }
         }
         Rule::Series(inner_rules) => {
             let mut remaining_str = string_to_match;
@@ -109,18 +123,22 @@ fn main() {
         }
     }
 
-    let all_rules = Arc::new(
-        rule_lines
-            .iter()
-            .map(|line| line.split(": ").collect_tuple().unwrap())
-            .sorted_by_key(|(key, _)| key.parse::<usize>().unwrap())
-            .map(|(_, rule_string)| parse_rule(rule_string))
-            .collect_vec(),
-    );
+    let mut all_rules = rule_lines
+        .iter()
+        .map(|line| line.split(": ").collect_tuple().unwrap())
+        .sorted_by_key(|(key, _)| key.parse::<usize>().unwrap())
+        .map(|(_, rule_string)| parse_rule(rule_string))
+        .collect_vec();
+
+    // part 2 modifications
+    all_rules[8] = parse_rule("42 | 42 8");
+    all_rules[11] = parse_rule("42 31 | 42 11 31");
+
+    let all_rules = Arc::new(all_rules);
 
     let rule_to_match = Arc::clone(&all_rules[0]);
     let count = messages
-        .into_iter()
+        .into_par_iter()
         .filter(|message| {
             let result = matches_rule(
                 Arc::clone(&all_rules),
