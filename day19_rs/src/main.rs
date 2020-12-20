@@ -165,21 +165,40 @@ fn main() {
     all_rules[8] = parse_rule("42 | 42 8");
     all_rules[11] = parse_rule("42 31 | 42 11 31");
 
-    let all_rules = Arc::new(all_rules);
+    for (i, rule) in all_rules.iter().enumerate() {
+        println!("rule{} = @{{ {} }}", i, to_peg(rule));
+    }
 
-    let rule_to_match = Arc::clone(&all_rules[0]);
-    let count = messages
-        .into_par_iter()
-        .filter(|message| {
-            let result = matches_rule(
-                Arc::clone(&all_rules),
-                Arc::clone(&rule_to_match),
-                message.substr(..),
-            );
-            result.is_full_match()
-        })
-        .count();
-    dbg!(count);
+    // let all_rules = Arc::new(all_rules);
+    //
+    // let rule_to_match = Arc::clone(&all_rules[0]);
+    // let count = messages
+    //     .into_par_iter()
+    //     .filter(|message| {
+    //         let result = matches_rule(
+    //             Arc::clone(&all_rules),
+    //             Arc::clone(&rule_to_match),
+    //             message.substr(..),
+    //         );
+    //         result.is_full_match()
+    //     })
+    //     .count();
+    // dbg!(count);
+}
+
+fn to_peg(rule: &Rule) -> String {
+    match rule {
+        Rule::Ref(rulenum) => format!("rule{}", rulenum),
+        Rule::MatchChar(c) => format!("\"{}\"", c),
+        Rule::Or([rule_a, rule_b]) => format!("({} | {})", to_peg(rule_a), to_peg(rule_b)),
+        Rule::Series(rules) => {
+            let series = rules
+                .iter()
+                .map(|inner_rule| to_peg(inner_rule))
+                .join(" ~ ");
+            format!("({})", series)
+        }
+    }
 }
 
 const INPUT: &'static str = r#"28: 106 129
