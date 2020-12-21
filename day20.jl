@@ -1783,6 +1783,22 @@ function all_edges(pixels::Pixels)
     end
 end
 
+# badboy from https://stackoverflow.com/a/64769375/149987
+function minby(itr, by)
+     winner = nothing
+     for item in itr
+         if isnothing(winner)
+             winner = (by(item), item)
+         else
+             candidate = (by(item), item)
+             if candidate[1] < winner[1]
+                 winner = candidate
+             end
+         end
+     end
+     winner[2]
+end
+
 global current_tile_id = nothing
 current_tile_lines = Vector{Char}[]
 for line in split(INPUT, "\n")
@@ -1815,13 +1831,15 @@ all_edges_from_all_parts = [
         all_edge_value_permutations(photo_part.pixels)]
         for photo_part in photo_parts]
 
-all_permutations_of_tile_edges = [product(all_edges_from_all_parts...)...] ::Vector{NTuple{9,Tile}}
-permutations_with_counts = [(tiles, edge_count_by_value=countmap(flatten(tile.edge_permutation for tile in tiles))) for tiles in all_permutations_of_tile_edges]
-num_edges, i = findmin(map(pwc -> length(pwc.edge_count_by_value), permutations_with_counts))
-permutation_with_counts = permutations_with_counts[i]
+all_permutations_of_tile_edges = product(all_edges_from_all_parts...) #::Vector{NTuple{9,Tile}}
+permutations_with_counts = ((tiles, edge_count_by_value=countmap(flatten(tile.edge_permutation for tile in tiles))) for tiles in all_permutations_of_tile_edges)
+# num_edges, i = findmin(map(pwc -> length(pwc.edge_count_by_value), permutations_with_counts))
+# permutation_with_counts = permutations_with_counts[i]
+#x = iterate(permutations_with_counts)
+permutation_with_counts = minby(permutations_with_counts, pwc -> length(pwc.edge_count_by_value))
 
 function score(tile::Tile, edge_count_by_value)
-    sum(map(edge -> edge_count_by_value[edge], tile.edge_permutation))
+   sum(map(edge -> edge_count_by_value[edge], tile.edge_permutation))
 end
 
 sorted_tiles = sort(collect(permutation_with_counts.tiles), by=(tile -> score(tile, permutation_with_counts.edge_count_by_value)))
