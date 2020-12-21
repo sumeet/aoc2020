@@ -1,3 +1,112 @@
+DEMO = "Tile 2311:
+..##.#..#.
+##..#.....
+#...##..#.
+####.#...#
+##.##.###.
+##...#.###
+.#.#.#..##
+..#....#..
+###...#.#.
+..###..###
+
+Tile 1951:
+#.##...##.
+#.####...#
+.....#..##
+#...######
+.##.#....#
+.###.#####
+###.##.##.
+.###....#.
+..#.#..#.#
+#...##.#..
+
+Tile 1171:
+####...##.
+#..##.#..#
+##.#..#.#.
+.###.####.
+..###.####
+.##....##.
+.#...####.
+#.##.####.
+####..#...
+.....##...
+
+Tile 1427:
+###.##.#..
+.#..#.##..
+.#.##.#..#
+#.#.#.##.#
+....#...##
+...##..##.
+...#.#####
+.#.####.#.
+..#..###.#
+..##.#..#.
+
+Tile 1489:
+##.#.#....
+..##...#..
+.##..##...
+..#...#...
+#####...#.
+#..#.#.#.#
+...#.#.#..
+##.#...##.
+..##.##.##
+###.##.#..
+
+Tile 2473:
+#....####.
+#..#.##...
+#.##..#...
+######.#.#
+.#...#.#.#
+.#########
+.###.#..#.
+########.#
+##...##.#.
+..###.#.#.
+
+Tile 2971:
+..#.#....#
+#...###...
+#.#.###...
+##.##..#..
+.#####..##
+.#..####.#
+#..#.#..#.
+..####.###
+..#.#.###.
+...#.#.#.#
+
+Tile 2729:
+...#.#.#.#
+####.#....
+..#.#.....
+....#..#.#
+.##..##.#.
+.#.####...
+####.#.#..
+##.####...
+##..#.##..
+#.##...##.
+
+Tile 3079:
+#.#.#####.
+.#..######
+..#.......
+######....
+####.#..#.
+.#...#.##.
+#.#####.##
+..#.###...
+..#.......
+..#.###...
+"
+
 INPUT = "Tile 2797:
 .#...#...#
 ##........
@@ -1783,7 +1892,7 @@ function all_edges(pixels::Pixels)
 end
 
 # badboy from https://stackoverflow.com/a/64769375/149987
-function minby(itr, by)
+function minby(by, itr)
      winner = nothing
      for item in itr
          if isnothing(winner)
@@ -1800,7 +1909,7 @@ end
 
 global current_tile_id = nothing
 current_tile_lines = Vector{Char}[]
-for line in split(INPUT, "\n")
+for line in split(DEMO, "\n")
     if startswith(line, "Tile")
         global current_tile_id = parse(Int, strip(line, collect("Tile :")))
     elseif line == ""
@@ -1820,21 +1929,62 @@ function all_flips(pixels_orig)
     end
 end
 
-struct Tile
+mutable struct Tile
     tile_id
-    edge_permutation
+    pixels
+    current_edge_permutation
 end
 
-all_edges_from_all_parts = [
-    [Tile(photo_part.tile_id, permutation) for permutation in
-        all_edge_value_permutations(photo_part.pixels)]
-        for photo_part in photo_parts]
-
-all_permutations_of_tile_edges = Iterators.product(all_edges_from_all_parts...) #::Vector{NTuple{9,Tile}}
+all_tiles = [
+    Tile(photo_part.tile_id, photo_part.pixels,
+        first(all_edge_value_permutations(photo_part.pixels))) for photo_part in photo_parts]
 
 function score(tile::Tile, edge_count_by_value)
   sum(map(edge -> edge_count_by_value[edge], tile.edge_permutation))
 end
+
+function iter_with_rest(vec)
+    Channel() do channel
+        for (i, elem) in enumerate(vec)
+            rest = deleteat!(copy(vec), i)
+            put!(channel, (elem, rest))
+        end
+    end
+end
+
+get_edge_count_by_value(tiles) = get_edge_count_by_value_for_edges(get_edges(tiles))
+get_edge_count_by_value_for_edges(edges) = countmap(flatten(edges))
+get_edges(tiles) = [tile.current_edge_permutation for tile in tiles]
+
+while true
+    edge_count_by_value = get_edge_count_by_value(all_tiles)
+    println(length(edge_count_by_value))
+
+    for (tile, rest) in iter_with_rest(all_tiles)
+        tile.current_edge_permutation = minby(all_edge_value_permutations(tile.pixels)) do permutation
+            length(get_edge_count_by_value_for_edges(vcat(get_edges(rest), [permutation])))
+        end
+    end
+    #     new_tile = copy(tile)
+    #     for permutation in all_edge_value_permutations(tile.pixels)
+    #         new_tile.curr
+    #     end
+    #     prev_permutation = tile.prev_permutation
+    # end
+
+    if length(get_edge_count_by_value(all_tiles)) == 312
+        println("success")
+        exit()
+    end
+end
+
+#all_edges_from_all_parts = [
+#    [Tile(photo_part.tile_id, permutation) for permutation in
+#        all_edge_value_permutations(photo_part.pixels)]
+#        for photo_part in photo_parts]
+#
+#all_permutations_of_tile_edges = Iterators.product(all_edges_from_all_parts...) #::Vector{NTuple{9,Tile}}
+
 
 # import ThreadPools
 # function mytforeach(iter, &fn)
