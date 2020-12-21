@@ -1843,4 +1843,4 @@ function score(tile::Tile, edge_count_by_value)
 end
 
 sorted_tiles = sort(collect(permutation_with_counts.tiles), by=(tile -> score(tile, permutation_with_counts.edge_count_by_value)))
-prod(map(t -> t.tile_id, sorted_tiles[1:4]))
+@show prod(map(t -> t.tile_id, sorted_tiles[1:4]))
