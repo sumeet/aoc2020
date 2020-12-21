@@ -1727,7 +1727,6 @@ Tile 2111:
 ..##.#..#.
 "
 import StatsBase.countmap
-import Base.product
 import Base.Iterators.flatten
 
 # julia weirdness, a small price to pay for the built in matrix operations
@@ -1831,16 +1830,54 @@ all_edges_from_all_parts = [
         all_edge_value_permutations(photo_part.pixels)]
         for photo_part in photo_parts]
 
-all_permutations_of_tile_edges = product(all_edges_from_all_parts...) #::Vector{NTuple{9,Tile}}
-permutations_with_counts = ((tiles, edge_count_by_value=countmap(flatten(tile.edge_permutation for tile in tiles))) for tiles in all_permutations_of_tile_edges)
+all_permutations_of_tile_edges = Iterators.product(all_edges_from_all_parts...) #::Vector{NTuple{9,Tile}}
+
+function score(tile::Tile, edge_count_by_value)
+  sum(map(edge -> edge_count_by_value[edge], tile.edge_permutation))
+end
+
+# import ThreadPools
+# function mytforeach(iter, &fn)
+#     ThreadPools.qforeach(fn, iter)
+# end
+
+# import ThreadsX
+#import ThreadPools
+#ThreadPools.tforeach(all_permutations_of_tile_edges) do tiles
+#    #println(edge_count_by_value)
+#    edge_count_by_value = countmap(flatten(tile.edge_permutation for tile in tiles))
+#    if length(edge_count_by_value) == 312
+#        sorted_tiles = sort(collect(tiles), by=(tile -> score(tile, edge_count_by_value)))
+#        @show prod(map(t -> t.tile_id, sorted_tiles[1:4]))
+#        exit()
+#    end
+#end
+
+#permutations_with_counts = ((tiles, edge_count_by_value=countmap(flatten(tile.edge_permutation for tile in tiles))) for tiles in all_permutations_of_tile_edges)
+
 # num_edges, i = findmin(map(pwc -> length(pwc.edge_count_by_value), permutations_with_counts))
 # permutation_with_counts = permutations_with_counts[i]
 #x = iterate(permutations_with_counts)
-permutation_with_counts = minby(permutations_with_counts, pwc -> length(pwc.edge_count_by_value))
+#permutation_with_counts = minby(permutations_with_counts, pwc -> length(pwc.edge_count_by_value))
+#
+#
+#sorted_tiles = sort(collect(permutation_with_counts.tiles), by=(tile -> score(tile, permutation_with_counts.edge_count_by_value)))
+#@show prod(map(t -> t.tile_id, sorted_tiles[1:4]))
+#function handle_pwc(pwc)
+#    if length(pwc.edge_count_by_value) == 312
+#        sorted_tiles = sort(collect(pwc.tiles), by=(tile -> score(tile, permutation_with_counts.edge_count_by_value)))
+#        @show prod(map(t -> t.tile_id, sorted_tiles[1:4]))
+#        exit()
+#    end
+#end
 
-function score(tile::Tile, edge_count_by_value)
-   sum(map(edge -> edge_count_by_value[edge], tile.edge_permutation))
-end
-
-sorted_tiles = sort(collect(permutation_with_counts.tiles), by=(tile -> score(tile, permutation_with_counts.edge_count_by_value)))
-@show prod(map(t -> t.tile_id, sorted_tiles[1:4]))
+# import ThreadPools
+# ThreadPools.qforeach(handle_pwc, permutations_with_counts)
+#     # n * (n+1) * 2 = 12 * 13 * 2 = 312, number of edges
+#     if length(pwc.edge_count_by_value) == 312
+#         sorted_tiles = sort(collect(pwc.tiles), by=(tile -> score(tile, permutation_with_counts.edge_count_by_value)))
+#         @show prod(map(t -> t.tile_id, sorted_tiles[1:4]))
+#         exit()
+#     end
+#     print(".")
+# end
