@@ -1846,21 +1846,6 @@ photo_parts = []
 
 const Pixels = Array{Char, 2}
 
-struct EdgeValues
-    top::Int
-    bottom::Int
-    left::Int
-    right::Int
-    function EdgeValues(pixels::Pixels)
-        top = pixels[1, :]
-        bottom = pixels[10, :]
-        left = pixels[:, 1]
-        right = pixels[:, 10]
-        new(num_from_binary_rep(top), num_from_binary_rep(bottom),
-            num_from_binary_rep(left), num_from_binary_rep(right))
-    end
-end
-
 function num_from_binary_rep(a::Vector{Char}) :: Int
     parse(Int, join(c == '#' ? 1 : 0 for c in a), base = 2)
 end
@@ -1923,12 +1908,8 @@ for photo_part in photo_parts
 end
 destination_frequency = countmap(flatten(values(possible_destinations_by_tile_id)))
 
-# all_edge_value_permutations(photo_part.pixels) for photo_partO
-# countmap(flatten())
-
 score_by_tile_id = map(collect(possible_destinations_by_tile_id)) do (tile_id, possible_destinations)
      (tile_id, sum(dest -> destination_frequency[dest], possible_destinations))
 end
-# [for (tile_id, possible_destinations) in possible_destinations_by_tile_id]
 
 @show prod(t -> t[1], sort(score_by_tile_id, by=(t -> t[2]))[1:4])
