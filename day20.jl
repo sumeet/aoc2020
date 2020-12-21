@@ -106,6 +106,9 @@ Tile 3079:
 ..#.......
 ..#.###...
 "
+import StatsBase.countmap
+import Base.product
+import Base.Iterators.flatten
 
 # julia weirdness, a small price to pay for the built in matrix operations
 import Base.transpose
@@ -182,10 +185,24 @@ function all_flips(pixels_orig)
     end
 end
 
+struct Tile
+    tile_id
+    edge_permutation
+end
+
 all_edges_from_all_parts = [
-    (edge_permutations=collect(all_edge_value_permutations(photo_part.pixels)), tile_id=photo_part.tile_id)
-    for photo_part in photo_parts]
+    [Tile(photo_part.tile_id, permutation) for permutation in
+        all_edge_value_permutations(photo_part.pixels)]
+        for photo_part in photo_parts]
 
-sets_of_edges_in_all_permutations = (Set(Iterators.flatten(all_edges)) for all_edges in [Base.product(all_edges_from_all_parts...)...])
+all_permutations_of_tile_edges = [product(all_edges_from_all_parts...)...] ::Vector{NTuple{9,Tile}}
+permutations_with_counts = [(tiles, edge_count_by_value=countmap(flatten(tile.edge_permutation for tile in tiles))) for tiles in all_permutations_of_tile_edges]
+num_edges, i = findmin(map(pwc -> length(pwc.edge_count_by_value), permutations_with_counts))
+permutation_with_counts = permutations_with_counts[i]
 
-minimum(length, sets_of_edges_in_all_permutations)
+function score(tile::Tile, edge_count_by_value)
+    sum(map(edge -> edge_count_by_value[edge], tile.edge_permutation))
+end
+
+sorted_tiles = sort(collect(permutation_with_counts.tiles), by=(tile -> score(tile, permutation_with_counts.edge_count_by_value)))
+prod(map(t -> t.tile_id, sorted_tiles[1:4]))
