@@ -142,7 +142,7 @@ end
 function all_edge_value_permutations(pixels::Pixels)
     Channel() do channel
         for flip in all_flips(pixels)
-            put!(channel, (num_from_binary_rep(edge) for edge in all_edges(flip)))
+            put!(channel, [num_from_binary_rep(edge) for edge in all_edges(flip)])
         end
     end
 end
@@ -182,31 +182,10 @@ function all_flips(pixels_orig)
     end
 end
 
-# function rotate_n_times(pixels, n)
-#     for _ in 1:n
-#         pixels = rotr90(pixels)
-#     end
-#     pixels
-# end
-#
-# function all_rotations_and_flips(pixels_orig)
-#     Channel() do channel
-#         for flipation in 0:2
-#             pixels_flipped = pixels_orig
-#
-#             # for flipation == 0, don't do anything
-#             if flipation == 1
-#                 # flip vertically
-#                 pixels_flipped = reverse(pixels_orig, dims=1)
-#             elseif flipation == 2
-#                 # flip horizonally
-#                 pixels_flipped = reverse(pixels_orig, dims=2)
-#             end
-#
-#             for n_rotations in 0:3
-#                 pixels_rotated = rotate_n_times(pixels_flipped, n_rotations)
-#                 put!(channel, pixels_rotated)
-#             end
-#         end
-#     end
-# end
+all_edges_from_all_parts = [
+    (edge_permutations=collect(all_edge_value_permutations(photo_part.pixels)), tile_id=photo_part.tile_id)
+    for photo_part in photo_parts]
+
+sets_of_edges_in_all_permutations = (Set(Iterators.flatten(all_edges)) for all_edges in [Base.product(all_edges_from_all_parts...)...])
+
+minimum(length, sets_of_edges_in_all_permutations)
