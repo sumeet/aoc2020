@@ -1891,25 +1891,9 @@ function all_edges(pixels::Pixels)
     end
 end
 
-# badboy from https://stackoverflow.com/a/64769375/149987
-function minby(by, itr)
-     winner = nothing
-     for item in itr
-         if isnothing(winner)
-             winner = (by(item), item)
-         else
-             candidate = (by(item), item)
-             if candidate[1] < winner[1]
-                 winner = candidate
-             end
-         end
-     end
-     winner[2]
-end
-
 global current_tile_id = nothing
 current_tile_lines = Vector{Char}[]
-for line in split(INPUT, "\n")
+for line in split(DEMO, "\n")
     if startswith(line, "Tile")
         global current_tile_id = parse(Int, strip(line, collect("Tile :")))
     elseif line == ""
@@ -1929,128 +1913,22 @@ function all_flips(pixels_orig)
     end
 end
 
-mutable struct Tile
-    tile_id
-    pixels
-    current_edge_permutation
+function possible_destinations(photo_part)
+    Set(flatten(all_edge_value_permutations(photo_part.pixels)))
 end
 
-all_tiles = [
-    Tile(photo_part.tile_id, photo_part.pixels,
-        first(all_edge_value_permutations(photo_part.pixels))) for photo_part in photo_parts]
-
-function score(tile::Tile, edge_count_by_value)
-  sum(map(edge -> edge_count_by_value[edge], tile.current_edge_permutation))
+possible_destinations_by_tile_id = Dict()
+for photo_part in photo_parts
+    possible_destinations_by_tile_id[photo_part.tile_id] = possible_destinations(photo_part)
 end
+destination_frequency = countmap(flatten(values(possible_destinations_by_tile_id)))
 
-function iter_with_rest(vec)
-    Channel() do channel
-        for (i, elem) in enumerate(vec)
-            rest = deleteat!(copy(vec), i)
-            put!(channel, (elem, rest))
-        end
-    end
+# all_edge_value_permutations(photo_part.pixels) for photo_partO
+# countmap(flatten())
+
+score_by_tile_id = map(collect(possible_destinations_by_tile_id)) do (tile_id, possible_destinations)
+     (tile_id, sum(dest -> destination_frequency[dest], possible_destinations))
 end
+# [for (tile_id, possible_destinations) in possible_destinations_by_tile_id]
 
-import Combinatorics
-function iter_tuple_combinations_with_rest(vec)
-    Channel() do channel
-        for ((i, a), (j, b)) in Combinatorics.combinations(collect(enumerate(vec)), 2)
-            rest = deleteat!(copy(vec), [i, j])
-            put!(channel, ((a, b), rest))
-        end
-    end
-end
-
-get_edge_count_by_value(tiles) = get_edge_count_by_value_for_edges(get_edges(tiles))
-get_edge_count_by_value_for_edges(edges) = countmap(flatten(edges))
-get_edges(tiles) = [tile.current_edge_permutation for tile in tiles]
-
-while true
-    edge_count_by_value = get_edge_count_by_value(all_tiles)
-    println(length(edge_count_by_value))
-
-    # for (tile, rest) in iter_with_rest(all_tiles)
-    #     tile.current_edge_permutation = minby(all_edge_value_permutations(tile.pixels)) do permutation
-    #         length(get_edge_count_by_value_for_edges(vcat(get_edges(rest), [permutation])))
-    #     end
-    # end
-    for ((tile_a, tile_b), rest) in iter_tuple_combinations_with_rest(all_tiles)
-        edge_combinations = Iterators.product(
-            collect(all_edge_value_permutations(tile_a.pixels)),
-            collect(all_edge_value_permutations(tile_b.pixels)))
-        edge_combinations = [edge_combinations...]
-        # println("tile a:")
-        # println(collect(all_edge_value_permutations(tile_a.pixels)))
-        # println("tile b:")
-        # println(collect(all_edge_value_permutations(tile_b.pixels)))
-        # println(length(edge_combinations))
-        tile_a.current_edge_permutation, tile_b.current_edge_permutation = minby(edge_combinations) do (perm_a, perm_b)
-            length(get_edge_count_by_value_for_edges(vcat(get_edges(rest), [perm_a, perm_b])))
-        end
-    end
-
-    # should be 312
-    edge_count_by_value = get_edge_count_by_value(all_tiles)
-    if length(edge_count_by_value) == 339
-        println("success")
-        println(edge_count_by_value)
-        sorted_tiles = sort(collect(all_tiles), by=(tile -> score(tile, edge_count_by_value)))
-        @show prod(map(t -> t.tile_id, sorted_tiles[1:4]))
-        exit()
-    end
-end
-
-#all_edges_from_all_parts = [
-#    [Tile(photo_part.tile_id, permutation) for permutation in
-#        all_edge_value_permutations(photo_part.pixels)]
-#        for photo_part in photo_parts]
-#
-#all_permutations_of_tile_edges = Iterators.product(all_edges_from_all_parts...) #::Vector{NTuple{9,Tile}}
-
-
-# import ThreadPools
-# function mytforeach(iter, &fn)
-#     ThreadPools.qforeach(fn, iter)
-# end
-
-# import ThreadsX
-#import ThreadPools
-#ThreadPools.tforeach(all_permutations_of_tile_edges) do tiles
-#    #println(edge_count_by_value)
-#    edge_count_by_value = countmap(flatten(tile.edge_permutation for tile in tiles))
-#    if length(edge_count_by_value) == 312
-#        sorted_tiles = sort(collect(tiles), by=(tile -> score(tile, edge_count_by_value)))
-#        @show prod(map(t -> t.tile_id, sorted_tiles[1:4]))
-#        exit()
-#    end
-#end
-
-#permutations_with_counts = ((tiles, edge_count_by_value=countmap(flatten(tile.edge_permutation for tile in tiles))) for tiles in all_permutations_of_tile_edges)
-
-# num_edges, i = findmin(map(pwc -> length(pwc.edge_count_by_value), permutations_with_counts))
-# permutation_with_counts = permutations_with_counts[i]
-#x = iterate(permutations_with_counts)
-#permutation_with_counts = minby(permutations_with_counts, pwc -> length(pwc.edge_count_by_value))
-#
-#
-#sorted_tiles = sort(collect(permutation_with_counts.tiles), by=(tile -> score(tile, permutation_with_counts.edge_count_by_value)))
-#@show prod(map(t -> t.tile_id, sorted_tiles[1:4]))
-#function handle_pwc(pwc)
-#    if length(pwc.edge_count_by_value) == 312
-#        sorted_tiles = sort(collect(pwc.tiles), by=(tile -> score(tile, permutation_with_counts.edge_count_by_value)))
-#        @show prod(map(t -> t.tile_id, sorted_tiles[1:4]))
-#        exit()
-#    end
-#end
-
-# import ThreadPools
-# ThreadPools.qforeach(handle_pwc, permutations_with_counts)
-#     # n * (n+1) * 2 = 12 * 13 * 2 = 312, number of edges
-#     if length(pwc.edge_count_by_value) == 312
-#         sorted_tiles = sort(collect(pwc.tiles), by=(tile -> score(tile, permutation_with_counts.edge_count_by_value)))
-#         @show prod(map(t -> t.tile_id, sorted_tiles[1:4]))
-#         exit()
-#     end
-#     print(".")
-# end
+prod(t -> t[1], sort(score_by_tile_id, by=(t -> t[2]))[1:4])
