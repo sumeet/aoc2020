@@ -1994,6 +1994,7 @@ while true
     edge_count_by_value = get_edge_count_by_value(all_tiles)
     if length(edge_count_by_value) == 339
         println("success")
+        println(edge_count_by_value)
         sorted_tiles = sort(collect(all_tiles), by=(tile -> score(tile, edge_count_by_value)))
         @show prod(map(t -> t.tile_id, sorted_tiles[1:4]))
         exit()
