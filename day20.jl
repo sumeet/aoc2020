@@ -1909,7 +1909,7 @@ end
 
 global current_tile_id = nothing
 current_tile_lines = Vector{Char}[]
-for line in split(DEMO, "\n")
+for line in split(INPUT, "\n")
     if startswith(line, "Tile")
         global current_tile_id = parse(Int, strip(line, collect("Tile :")))
     elseif line == ""
@@ -1940,7 +1940,7 @@ all_tiles = [
         first(all_edge_value_permutations(photo_part.pixels))) for photo_part in photo_parts]
 
 function score(tile::Tile, edge_count_by_value)
-  sum(map(edge -> edge_count_by_value[edge], tile.edge_permutation))
+  sum(map(edge -> edge_count_by_value[edge], tile.current_edge_permutation))
 end
 
 function iter_with_rest(vec)
@@ -1948,6 +1948,16 @@ function iter_with_rest(vec)
         for (i, elem) in enumerate(vec)
             rest = deleteat!(copy(vec), i)
             put!(channel, (elem, rest))
+        end
+    end
+end
+
+import Combinatorics
+function iter_tuple_combinations_with_rest(vec)
+    Channel() do channel
+        for ((i, a), (j, b)) in Combinatorics.combinations(collect(enumerate(vec)), 2)
+            rest = deleteat!(copy(vec), [i, j])
+            put!(channel, ((a, b), rest))
         end
     end
 end
@@ -1960,20 +1970,32 @@ while true
     edge_count_by_value = get_edge_count_by_value(all_tiles)
     println(length(edge_count_by_value))
 
-    for (tile, rest) in iter_with_rest(all_tiles)
-        tile.current_edge_permutation = minby(all_edge_value_permutations(tile.pixels)) do permutation
-            length(get_edge_count_by_value_for_edges(vcat(get_edges(rest), [permutation])))
+    # for (tile, rest) in iter_with_rest(all_tiles)
+    #     tile.current_edge_permutation = minby(all_edge_value_permutations(tile.pixels)) do permutation
+    #         length(get_edge_count_by_value_for_edges(vcat(get_edges(rest), [permutation])))
+    #     end
+    # end
+    for ((tile_a, tile_b), rest) in iter_tuple_combinations_with_rest(all_tiles)
+        edge_combinations = Iterators.product(
+            collect(all_edge_value_permutations(tile_a.pixels)),
+            collect(all_edge_value_permutations(tile_b.pixels)))
+        edge_combinations = [edge_combinations...]
+        # println("tile a:")
+        # println(collect(all_edge_value_permutations(tile_a.pixels)))
+        # println("tile b:")
+        # println(collect(all_edge_value_permutations(tile_b.pixels)))
+        # println(length(edge_combinations))
+        tile_a.current_edge_permutation, tile_b.current_edge_permutation = minby(edge_combinations) do (perm_a, perm_b)
+            length(get_edge_count_by_value_for_edges(vcat(get_edges(rest), [perm_a, perm_b])))
         end
     end
-    #     new_tile = copy(tile)
-    #     for permutation in all_edge_value_permutations(tile.pixels)
-    #         new_tile.curr
-    #     end
-    #     prev_permutation = tile.prev_permutation
-    # end
 
-    if length(get_edge_count_by_value(all_tiles)) == 312
+    # should be 312
+    edge_count_by_value = get_edge_count_by_value(all_tiles)
+    if length(edge_count_by_value) == 339
         println("success")
+        sorted_tiles = sort(collect(all_tiles), by=(tile -> score(tile, edge_count_by_value)))
+        @show prod(map(t -> t.tile_id, sorted_tiles[1:4]))
         exit()
     end
 end
