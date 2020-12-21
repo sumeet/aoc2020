@@ -1955,9 +1955,9 @@ end
 import Combinatorics
 function iter_tuple_combinations_with_rest(vec)
     Channel() do channel
-        for ((i, a), (j, b), (k, c)) in Combinatorics.combinations(collect(enumerate(vec)), 3)
-            rest = deleteat!(copy(vec), [i, j, k])
-            put!(channel, ((a, b, c), rest))
+        for ((i, a), (j, b)) in Combinatorics.combinations(collect(enumerate(vec)), 2)
+            rest = deleteat!(copy(vec), [i, j])
+            put!(channel, ((a, b), rest))
         end
     end
 end
@@ -1975,25 +1975,24 @@ while true
     #         length(get_edge_count_by_value_for_edges(vcat(get_edges(rest), [permutation])))
     #     end
     # end
-    for ((tile_a, tile_b, tile_c), rest) in iter_tuple_combinations_with_rest(all_tiles)
+    for ((tile_a, tile_b), rest) in iter_tuple_combinations_with_rest(all_tiles)
         edge_combinations = Iterators.product(
             collect(all_edge_value_permutations(tile_a.pixels)),
-            collect(all_edge_value_permutations(tile_b.pixels)),
-            collect(all_edge_value_permutations(tile_c.pixels)))
+            collect(all_edge_value_permutations(tile_b.pixels)))
         edge_combinations = [edge_combinations...]
         # println("tile a:")
         # println(collect(all_edge_value_permutations(tile_a.pixels)))
         # println("tile b:")
         # println(collect(all_edge_value_permutations(tile_b.pixels)))
         # println(length(edge_combinations))
-        tile_a.current_edge_permutation, tile_b.current_edge_permutation, tile_c.current_edge_permutation = minby(edge_combinations) do (perm_a, perm_b, perm_c)
-            @show length(get_edge_count_by_value_for_edges(vcat(get_edges(rest), [perm_a, perm_b, perm_c])))
+        tile_a.current_edge_permutation, tile_b.current_edge_permutation = minby(edge_combinations) do (perm_a, perm_b)
+            length(get_edge_count_by_value_for_edges(vcat(get_edges(rest), [perm_a, perm_b])))
         end
     end
 
     # should be 312
     edge_count_by_value = get_edge_count_by_value(all_tiles)
-    if length(edge_count_by_value) == 312
+    if length(edge_count_by_value) == 339
         println("success")
         sorted_tiles = sort(collect(all_tiles), by=(tile -> score(tile, edge_count_by_value)))
         @show prod(map(t -> t.tile_id, sorted_tiles[1:4]))
