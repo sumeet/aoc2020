@@ -1893,7 +1893,7 @@ end
 
 global current_tile_id = nothing
 current_tile_lines = Vector{Char}[]
-for line in split(DEMO, "\n")
+for line in split(INPUT, "\n")
     if startswith(line, "Tile")
         global current_tile_id = parse(Int, strip(line, collect("Tile :")))
     elseif line == ""
@@ -1931,4 +1931,4 @@ score_by_tile_id = map(collect(possible_destinations_by_tile_id)) do (tile_id, p
 end
 # [for (tile_id, possible_destinations) in possible_destinations_by_tile_id]
 
-prod(t -> t[1], sort(score_by_tile_id, by=(t -> t[2]))[1:4])
+@show prod(t -> t[1], sort(score_by_tile_id, by=(t -> t[2]))[1:4])
