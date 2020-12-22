@@ -2024,6 +2024,8 @@ while !isempty(q)
                 println("didn't expect this to happen")
                 exit()
             end
+
+            pushfirst!(q, dest_tile)
         else
             push!(q, this_tile)
         end
@@ -2045,6 +2047,8 @@ while !isempty(q)
                 println("didn't expect this to happen")
                 exit()
             end
+
+            pushfirst!(q, dest_tile)
         else
             push!(q, this_tile)
         end
@@ -2066,6 +2070,8 @@ while !isempty(q)
                 println("didn't expect this to happen")
                 exit()
             end
+
+            pushfirst!(q, dest_tile)
         else
             push!(q, this_tile)
         end
