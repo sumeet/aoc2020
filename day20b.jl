@@ -1967,7 +1967,6 @@ function look_for_unresolved_tiles(all_placed_tiles)
         length(pt.remaining_permutations) > 1 ||
             nothing in [pt.top, pt.left, pt.bottom, pt.right]
     end
-    # filter(pt -> length(pt.remaining_permutations) > 1 || , all_placed_tiles)
 end
 
 while true
