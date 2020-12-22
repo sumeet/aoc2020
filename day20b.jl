@@ -1905,7 +1905,7 @@ end
 
 global current_tile_id = nothing
 current_tile_lines = Vector{Char}[]
-for line in split(DEMO, "\n")
+for line in split(INPUT, "\n")
     if startswith(line, "Tile")
         global current_tile_id = parse(Int, strip(line, collect("Tile :")))
     elseif line == ""
