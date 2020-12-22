@@ -1855,25 +1855,53 @@ struct PhotoPart
     pixels::Pixels
 end
 
-function all_edge_value_permutations(pixels::Pixels)
+function all_rotations(pixels)
     Channel() do channel
-        for flip in all_flips(pixels)
-            put!(channel, [num_from_binary_rep(edge) for edge in all_edges(flip)])
-        end
+        # no rotation
+        put!(channel, pixels)
+
+        pixels = rotr90(pixels)
+        # one rotation
+        put!(channel, pixels)
+
+        pixels = rotr90(pixels)
+        # two rotations
+        put!(channel, pixels)
+
+        pixels = rotr90(pixels)
+        # three rotations
+        put!(channel, pixels)
     end
 end
 
-function all_edges(pixels::Pixels)
+function all_flips(pixels_orig)
     Channel() do channel
-        # top
-        put!(channel, pixels[1, :])
-        # bottom
-        put!(channel, pixels[10, :])
-        # left
-        put!(channel, pixels[:, 1])
-        # right
-        put!(channel, pixels[:, 10])
+        put!(channel, pixels_orig)
+        put!(channel, reverse(pixels_orig, dims=1))
+        put!(channel, reverse(pixels_orig, dims=2))
     end
+end
+
+function all_rotations_and_flips(pixels)
+    s = Set()
+        for flip in all_flips(pixels)
+            for rotation in all_rotations(flip)
+                push!(s, rotation)
+            end
+        end
+    s
+end
+
+function all_perms(pixels::Pixels)
+    ps = Set()
+    for pixels in all_rotations_and_flips(pixels)
+        top_edge = num_from_binary_rep(pixels[1, :])
+        bottom_edge = num_from_binary_rep(pixels[10, :])
+        left_edge = num_from_binary_rep(pixels[:, 1])
+        right_edge = num_from_binary_rep(pixels[:, 10])
+        push!(ps, Perm(top_edge, bottom_edge, left_edge, right_edge))
+    end
+    ps
 end
 
 global current_tile_id = nothing
@@ -1890,46 +1918,102 @@ for line in split(DEMO, "\n")
     end
 end
 
-function all_flips(pixels_orig)
-    Channel() do channel
-        put!(channel, pixels_orig)
-        put!(channel, reverse(pixels_orig, dims=1))
-        put!(channel, reverse(pixels_orig, dims=2))
+struct Perm
+    top_edge::Int
+    left_edge::Int
+    right_edge::Int
+    bottom_edge::Int
+    # inner_photo::Pixels
+end
+
+mutable struct PlacedTile
+    top::Union{PlacedTile,Nothing}
+    bottom::Union{PlacedTile,Nothing}
+    left::Union{PlacedTile,Nothing}
+    right::Union{PlacedTile,Nothing}
+    remaining_permutations::Set{Perm}
+end
+
+function possible_bottom_vals(pt::PlacedTile)
+    map(perm -> perm.bottom_edge, collect(pt.remaining_permutations))
+end
+
+function possible_top_vals(pt::PlacedTile)
+    map(perm -> perm.top_edge, collect(pt.remaining_permutations))
+end
+
+all_placed_tiles = map(photo_parts) do photo_part
+    PlacedTile(nothing, nothing, nothing, nothing, all_perms(photo_part.pixels))
+end
+
+function find_one_matching_point(src_possible_vals, dest_possible_vals)
+    first(intersect(src_possible_vals, dest_possible_vals))
+end
+
+function tiles_with_unresolved_perms(all_placed_tiles)
+    filter(pt -> length(pt.remaining_permutations) > 1, all_placed_tiles)
+end
+
+while true
+    local unresolved_tiles = tiles_with_unresolved_perms(all_placed_tiles)
+    if isempty(unresolved_tiles)
+        break
     end
-end
 
-function possible_destinations(photo_part)
-    Set(flatten(all_edge_value_permutations(photo_part.pixels)))
-end
+    for src_tile in unresolved_tiles
+        println("iteration")
+        if src_tile.top == nothing
+            dest_tile = filter(all_placed_tiles) do cand_tile
+                (cand_tile !== src_tile && (cand_tile.bottom == nothing) &&
+                 !isempty(intersect(possible_top_vals(src_tile), possible_bottom_vals(cand_tile))))
+            end
+            if !isempty(dest_tile)
+                dest_tile = first(dest_tile)
+                match_point = find_one_matching_point(possible_top_vals(src_tile), possible_bottom_vals(dest_tile))
+                src_tile.top = dest_tile
+                dest_tile.bottom = src_tile
+                filter!(perm -> perm.top_edge == match_point, src_tile.remaining_permutations)
+                filter!(perm -> perm.bottom_edge == match_point, dest_tile.remaining_permutations)
+            end
+        end
+        if src_tile.bottom == nothing
+            dest_tile = first(filter(all_placed_tiles) do cand_tile
+                (cand_tile !== src_tile && (cand_tile.top == nothing) &&
+                 !isempty(intersect(possible_bottom_vals(src_tile), possible_top_vals(cand_tile))))
+            end)
 
-possible_destinations_by_tile_id = Dict()
-for photo_part in photo_parts
-    possible_destinations_by_tile_id[photo_part.tile_id] = possible_destinations(photo_part)
-end
-destination_frequency = countmap(flatten(values(possible_destinations_by_tile_id)))
+            match_point = find_one_matching_point(possible_bottom_vals(src_tile), possible_top_vals(dest_tile))
+            src_tile.bottom = dest_tile
+            dest_tile.top = src_tile
 
-score_by_tile_id = map(collect(possible_destinations_by_tile_id)) do (tile_id, possible_destinations)
-     (tile_id, sum(dest -> destination_frequency[dest], possible_destinations))
-end
+            filter!(perm -> perm.bottom_edge == match_point, src_tile.remaining_permutations)
+            filter!(perm -> perm.top_edge == match_point, dest_tile.remaining_permutations)
+        end
+        if src_tile.left == nothing
+            dest_tile = first(filter(all_placed_tiles) do cand_tile
+                (cand_tile !== src_tile && (cand_tile.right == nothing) &&
+                 !isempty(intersect(possible_left_vals(src_tile), possible_right_vals(cand_tile))))
+            end)
 
-prod(t -> t[1], sort(score_by_tile_id, by=(t -> t[2]))[1:4])
+            match_point = find_one_matching_point(possible_left_vals(src_tile), possible_right_vals(dest_tile))
+            src_tile.left = dest_tile
+            dest_tile.right = src_tile
 
-function maxby(func, itr)
-    winner = (item=nothing, rank=-Inf)
-    for item in itr
-        rank = func(item)
-        if rank > winner.rank
-            winner = (item=item, rank=rank)
+            filter!(perm -> perm.left_edge == match_point, src_tile.remaining_permutations)
+            filter!(perm -> perm.right_edge == match_point, dest_tile.remaining_permutations)
+        end
+        if src_tile.right == nothing
+            dest_tile = first(filter(all_placed_tiles) do cand_tile
+                (cand_tile !== src_tile && (cand_tile.left == nothing) &&
+                 !isempty(intersect(possible_right_vals(src_tile), possible_left_vals(cand_tile))))
+            end)
+
+            match_point = find_one_matching_point(possible_right_vals(src_tile), possible_left_vals(dest_tile))
+            src_tile.right = dest_tile
+            dest_tile.left = src_tile
+
+            filter!(perm -> perm.right_edge == match_point, src_tile.remaining_permutations)
+            filter!(perm -> perm.left_edge == match_point, dest_tile.remaining_permutations)
         end
     end
-    winner.item
 end
-
-correct_rotation_by_tile_id = map(photo_parts) do photo_part
-    x = maxby(all_edge_value_permutations(photo_part.pixels)) do perm
-        sum(dest -> destination_frequency[dest], perm)
-    end
-    (photo_part.tile_id, x)
-end
-
-@show correct_rotation_by_tile_id
