@@ -2007,6 +2007,27 @@ while !isempty(q)
             push!(q, this_tile)
         end
     end
+
+    if isnothing(this_tile.bottom)
+        matching_tiles = filter(rest_tiles) do tile
+            any(perm -> perm.top_edge == this_perm.bottom_edge, tile.remaining_permutations)
+        end
+        if isempty(matching_tiles)
+            this_tile.top = NoTileThere()
+        elseif length(matching_tiles) == 1
+            dest_tile = matching_tiles[1]
+            this_tile.bottom = dest_tile
+            dest_tile.top = this_tile
+            filter!(perm -> perm.top_edge == this_perm.bottom_edge, dest_tile.remaining_permutations)
+
+            if length(dest_tile.remaining_permutations) != 1
+                println("didn't expect this to happen")
+                exit()
+            end
+        else
+            push!(q, this_tile)
+        end
+    end
 end
 
 # while true
