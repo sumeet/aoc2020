@@ -2052,3 +2052,94 @@ while !isempty(q)
         end
     end
 end
+
+function get_inner_photo(placed_tile)
+    first(placed_tile.remaining_permutations).inner_photo
+end
+
+topleft = filter(pt -> pt.left == NoTileThere() && pt.top == NoTileThere(), all_placed_tiles)
+if length(topleft) != 1
+    println("there should be only one tile in the topleft pos")
+    exit()
+end
+topleft = first(topleft)
+
+lines = []
+global cursor = topleft
+global beginning_of_line = topleft
+line = []
+while cursor isa PlacedTile
+    push!(line, get_inner_photo(cursor))
+    if cursor.right isa PlacedTile
+        global cursor = cursor.right
+    else
+        push!(lines, hcat(line...))
+        empty!(line)
+        global cursor = beginning_of_line.bottom
+        global beginning_of_line = beginning_of_line.bottom
+    end
+end
+
+result = vcat(lines...)
+
+# monster:
+#   01234567890123456789-
+#0                    # -
+#1  #    ##    ##    ###-
+#2   #  #  #  #  #  #   -
+function monster_dxdys()
+    Channel() do channel
+        put!(channel, (0, 1))
+        put!(channel, (1, 2))
+        # blank
+        # blank
+        put!(channel, (4, 2))
+        put!(channel, (5, 1))
+        put!(channel, (6, 1))
+        put!(channel, (7, 2))
+        # blank
+        # blank
+        put!(channel, (10, 2))
+        put!(channel, (11, 1))
+        put!(channel, (12, 1))
+        put!(channel, (13, 2))
+        # blank
+        # blank
+        put!(channel, (16, 2))
+        put!(channel, (17, 1))
+        put!(channel, (18, 1))
+        put!(channel, (18, 0))
+        put!(channel, (19, 1))
+    end
+end
+
+function monsters(pixels)
+    monster_xys = []
+    total_y, total_x = size(pixels)
+    monster_size_y, monster_size_x = (3, 20)
+    for x in 1:(total_x - monster_size_x), y in 1:(total_y - monster_size_y)
+        xys = [(x + dx, y + dy) for (dx, dy) in monster_dxdys()]
+        if Set(pixels[y, x] for (x, y) in xys) == Set("#")
+            push!(monster_xys, xys)
+        end
+    end
+    monster_xys
+end
+
+flippations_with_monster = map([all_rotations_and_flips(result)...]) do flippation
+    found_mons = monsters(flippation)
+    for monster_xys in found_mons
+        for (dx, dy) in monster_xys
+            flippation[dy, dx] = '.'
+        end
+    end
+    (length=length(found_mons), pixels=flippation)
+end
+
+filter!(fwm -> fwm.length > 1, flippations_with_monster)
+
+if length(flippations_with_monster) != 1
+    println!("someting is wrong")
+end
+
+count(c -> c == '#', collect(Base.Iterators.flatten(first(flippations_with_monster).pixels)))
