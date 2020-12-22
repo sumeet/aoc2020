@@ -1942,6 +1942,14 @@ function possible_top_vals(pt::PlacedTile)
     map(perm -> perm.top_edge, collect(pt.remaining_permutations))
 end
 
+function possible_left_vals(pt::PlacedTile)
+    map(perm -> perm.left_edge, collect(pt.remaining_permutations))
+end
+
+function possible_right_vals(pt::PlacedTile)
+    map(perm -> perm.right_edge, collect(pt.remaining_permutations))
+end
+
 all_placed_tiles = map(photo_parts) do photo_part
     PlacedTile(nothing, nothing, nothing, nothing, all_perms(photo_part.pixels))
 end
@@ -1961,7 +1969,6 @@ while true
     end
 
     for src_tile in unresolved_tiles
-        println("iteration")
         if src_tile.top == nothing
             dest_tile = filter(all_placed_tiles) do cand_tile
                 (cand_tile !== src_tile && (cand_tile.bottom == nothing) &&
@@ -1977,43 +1984,53 @@ while true
             end
         end
         if src_tile.bottom == nothing
-            dest_tile = first(filter(all_placed_tiles) do cand_tile
+            dest_tile = filter(all_placed_tiles) do cand_tile
                 (cand_tile !== src_tile && (cand_tile.top == nothing) &&
                  !isempty(intersect(possible_bottom_vals(src_tile), possible_top_vals(cand_tile))))
-            end)
+            end
 
-            match_point = find_one_matching_point(possible_bottom_vals(src_tile), possible_top_vals(dest_tile))
-            src_tile.bottom = dest_tile
-            dest_tile.top = src_tile
+            if !isempty(dest_tile)
+                dest_tile = first(dest_tile)
 
-            filter!(perm -> perm.bottom_edge == match_point, src_tile.remaining_permutations)
-            filter!(perm -> perm.top_edge == match_point, dest_tile.remaining_permutations)
+                match_point = find_one_matching_point(possible_bottom_vals(src_tile), possible_top_vals(dest_tile))
+                src_tile.bottom = dest_tile
+                dest_tile.top = src_tile
+
+                filter!(perm -> perm.bottom_edge == match_point, src_tile.remaining_permutations)
+                filter!(perm -> perm.top_edge == match_point, dest_tile.remaining_permutations)
+            end
         end
         if src_tile.left == nothing
-            dest_tile = first(filter(all_placed_tiles) do cand_tile
+            dest_tile = filter(all_placed_tiles) do cand_tile
                 (cand_tile !== src_tile && (cand_tile.right == nothing) &&
                  !isempty(intersect(possible_left_vals(src_tile), possible_right_vals(cand_tile))))
-            end)
+            end
 
-            match_point = find_one_matching_point(possible_left_vals(src_tile), possible_right_vals(dest_tile))
-            src_tile.left = dest_tile
-            dest_tile.right = src_tile
+            if !isempty(dest_tile)
+                dest_tile = first(dest_tile)
+                match_point = find_one_matching_point(possible_left_vals(src_tile), possible_right_vals(dest_tile))
+                src_tile.left = dest_tile
+                dest_tile.right = src_tile
 
-            filter!(perm -> perm.left_edge == match_point, src_tile.remaining_permutations)
-            filter!(perm -> perm.right_edge == match_point, dest_tile.remaining_permutations)
+                filter!(perm -> perm.left_edge == match_point, src_tile.remaining_permutations)
+                filter!(perm -> perm.right_edge == match_point, dest_tile.remaining_permutations)
+            end
         end
         if src_tile.right == nothing
-            dest_tile = first(filter(all_placed_tiles) do cand_tile
+            dest_tile = filter(all_placed_tiles) do cand_tile
                 (cand_tile !== src_tile && (cand_tile.left == nothing) &&
                  !isempty(intersect(possible_right_vals(src_tile), possible_left_vals(cand_tile))))
-            end)
+            end
 
-            match_point = find_one_matching_point(possible_right_vals(src_tile), possible_left_vals(dest_tile))
-            src_tile.right = dest_tile
-            dest_tile.left = src_tile
+            if !isempty(dest_tile)
+                dest_tile = first(dest_tile)
+                match_point = find_one_matching_point(possible_right_vals(src_tile), possible_left_vals(dest_tile))
+                src_tile.right = dest_tile
+                dest_tile.left = src_tile
 
-            filter!(perm -> perm.right_edge == match_point, src_tile.remaining_permutations)
-            filter!(perm -> perm.left_edge == match_point, dest_tile.remaining_permutations)
+                filter!(perm -> perm.right_edge == match_point, src_tile.remaining_permutations)
+                filter!(perm -> perm.left_edge == match_point, dest_tile.remaining_permutations)
+            end
         end
     end
 end
