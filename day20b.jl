@@ -2013,12 +2013,54 @@ while !isempty(q)
             any(perm -> perm.top_edge == this_perm.bottom_edge, tile.remaining_permutations)
         end
         if isempty(matching_tiles)
-            this_tile.top = NoTileThere()
+            this_tile.bottom = NoTileThere()
         elseif length(matching_tiles) == 1
             dest_tile = matching_tiles[1]
             this_tile.bottom = dest_tile
             dest_tile.top = this_tile
             filter!(perm -> perm.top_edge == this_perm.bottom_edge, dest_tile.remaining_permutations)
+
+            if length(dest_tile.remaining_permutations) != 1
+                println("didn't expect this to happen")
+                exit()
+            end
+        else
+            push!(q, this_tile)
+        end
+    end
+
+    if isnothing(this_tile.left)
+        matching_tiles = filter(rest_tiles) do tile
+            any(perm -> perm.right_edge == this_perm.left_edge, tile.remaining_permutations)
+        end
+        if isempty(matching_tiles)
+            this_tile.left = NoTileThere()
+        elseif length(matching_tiles) == 1
+            dest_tile = matching_tiles[1]
+            this_tile.left = dest_tile
+            dest_tile.right = this_tile
+            filter!(perm -> perm.right_edge == this_perm.left_edge, dest_tile.remaining_permutations)
+
+            if length(dest_tile.remaining_permutations) != 1
+                println("didn't expect this to happen")
+                exit()
+            end
+        else
+            push!(q, this_tile)
+        end
+    end
+
+    if isnothing(this_tile.right)
+        matching_tiles = filter(rest_tiles) do tile
+            any(perm -> perm.left_edge == this_perm.right_edge, tile.remaining_permutations)
+        end
+        if isempty(matching_tiles)
+            this_tile.right = NoTileThere()
+        elseif length(matching_tiles) == 1
+            dest_tile = matching_tiles[1]
+            this_tile.right = dest_tile
+            dest_tile.left = this_tile
+            filter!(perm -> perm.left_edge == this_perm.right_edge, dest_tile.remaining_permutations)
 
             if length(dest_tile.remaining_permutations) != 1
                 println("didn't expect this to happen")
