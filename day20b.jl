@@ -1835,9 +1835,6 @@ Tile 2111:
 ......#..#
 ..##.#..#.
 "
-import StatsBase.countmap
-import Base.Iterators.flatten
-
 # julia weirdness, a small price to pay for the built in matrix operations
 import Base.transpose
 transpose(c::Char) = c
@@ -1877,36 +1874,37 @@ end
 function all_flips(pixels_orig)
     Channel() do channel
         put!(channel, pixels_orig)
-        put!(channel, reverse(pixels_orig, dims=1))
-        put!(channel, reverse(pixels_orig, dims=2))
+        next_flip = reverse(pixels_orig, dims=1)
+        put!(channel, next_flip)
+        put!(channel, reverse(next_flip, dims=2))
     end
 end
 
 function all_rotations_and_flips(pixels)
-    s = Set()
+    s = []
         for flip in all_flips(pixels)
             for rotation in all_rotations(flip)
                 push!(s, rotation)
             end
         end
-    s
+    unique(s)
 end
 
 function all_perms(tile_id, pixels::Pixels)
-    ps = Set()
+    ps = []
     for pixels in all_rotations_and_flips(pixels)
         top_edge = num_from_binary_rep(pixels[1, :])
         bottom_edge = num_from_binary_rep(pixels[10, :])
         left_edge = num_from_binary_rep(pixels[:, 1])
         right_edge = num_from_binary_rep(pixels[:, 10])
-        push!(ps, Perm(tile_id, top_edge, bottom_edge, left_edge, right_edge))
+        push!(ps, Perm(tile_id, top_edge, left_edge, right_edge, bottom_edge, pixels))
     end
-    ps
+    unique(ps)
 end
 
 global current_tile_id = nothing
 current_tile_lines = Vector{Char}[]
-for line in split(INPUT, "\n")
+for line in split(DEMO, "\n")
     if startswith(line, "Tile")
         global current_tile_id = parse(Int, strip(line, collect("Tile :")))
     elseif line == ""
@@ -1924,7 +1922,7 @@ struct Perm
     left_edge::Int
     right_edge::Int
     bottom_edge::Int
-    # inner_photo::Pixels
+    outer_photo::Pixels
 end
 
 struct NoTileThere
@@ -1939,35 +1937,9 @@ mutable struct PlacedTile
     remaining_permutations::Vector{Perm}
 end
 
-function possible_bottom_vals(pt::PlacedTile)
-    map(perm -> perm.bottom_edge, collect(pt.remaining_permutations))
-end
-
-function possible_top_vals(pt::PlacedTile)
-    map(perm -> perm.top_edge, collect(pt.remaining_permutations))
-end
-
-function possible_left_vals(pt::PlacedTile)
-    map(perm -> perm.left_edge, collect(pt.remaining_permutations))
-end
-
-function possible_right_vals(pt::PlacedTile)
-    map(perm -> perm.right_edge, collect(pt.remaining_permutations))
-end
-
 all_placed_tiles = map(photo_parts) do photo_part
     PlacedTile(photo_part.tile_id, nothing, nothing, nothing, nothing,
                collect(all_perms(photo_part.tile_id, photo_part.pixels)))
-end
-
-function find_one_matching_point(src_possible_vals, dest_possible_vals)
-    first(intersect(src_possible_vals, dest_possible_vals))
-end
-
-function look_for_unresolved_tiles(all_placed_tiles)
-    filter(all_placed_tiles) do pt
-        nothing in [pt.top, pt.left, pt.bottom, pt.right]
-    end
 end
 
 seed_tile = all_placed_tiles[1]
@@ -2077,84 +2049,3 @@ while !isempty(q)
         end
     end
 end
-
-# while true
-#     local unresolved_tiles = look_for_unresolved_tiles(all_placed_tiles)
-#     if isempty(unresolved_tiles)
-#         break
-#     end
-#
-#     for src_tile in unresolved_tiles
-#         if src_tile.top == nothing
-#             dest_tile = filter(all_placed_tiles) do cand_tile
-#                 (cand_tile !== src_tile && (cand_tile.bottom == nothing) &&
-#                  !isempty(intersect(possible_top_vals(src_tile), possible_bottom_vals(cand_tile))))
-#             end
-#             if !isempty(dest_tile)
-#                 dest_tile = first(dest_tile)
-#                 match_points = intersect(possible_top_vals(src_tile), possible_bottom_vals(dest_tile))
-#                 src_tile.top = dest_tile
-#                 dest_tile.bottom = src_tile
-#                 filter!(perm -> perm.top_edge in match_points, src_tile.remaining_permutations)
-#                 filter!(perm -> perm.bottom_edge in match_points, dest_tile.remaining_permutations)
-#             else
-#                 src_tile.top = NoTileThere()
-#             end
-#         end
-#         if src_tile.bottom == nothing
-#             dest_tile = filter(all_placed_tiles) do cand_tile
-#                 (cand_tile !== src_tile && (cand_tile.top == nothing) &&
-#                  !isempty(intersect(possible_bottom_vals(src_tile), possible_top_vals(cand_tile))))
-#             end
-#
-#             if !isempty(dest_tile)
-#                 dest_tile = first(dest_tile)
-#
-#                 match_points = intersect(possible_bottom_vals(src_tile), possible_top_vals(dest_tile))
-#                 src_tile.bottom = dest_tile
-#                 dest_tile.top = src_tile
-#
-#                 filter!(perm -> perm.bottom_edge in match_points, src_tile.remaining_permutations)
-#                 filter!(perm -> perm.top_edge in match_points, dest_tile.remaining_permutations)
-#             else
-#                 src_tile.bottom = NoTileThere()
-#             end
-#         end
-#         if src_tile.left == nothing
-#             dest_tile = filter(all_placed_tiles) do cand_tile
-#                 (cand_tile !== src_tile && (cand_tile.right == nothing) &&
-#                  !isempty(intersect(possible_left_vals(src_tile), possible_right_vals(cand_tile))))
-#             end
-#
-#             if !isempty(dest_tile)
-#                 dest_tile = first(dest_tile)
-#                 match_points = intersect(possible_left_vals(src_tile), possible_right_vals(dest_tile))
-#                 src_tile.left = dest_tile
-#                 dest_tile.right = src_tile
-#
-#                 filter!(perm -> perm.left_edge in match_points, src_tile.remaining_permutations)
-#                 filter!(perm -> perm.right_edge in match_points, dest_tile.remaining_permutations)
-#             else
-#                 src_tile.left = NoTileThere()
-#             end
-#         end
-#         if src_tile.right == nothing
-#             dest_tile = filter(all_placed_tiles) do cand_tile
-#                 (cand_tile !== src_tile && (cand_tile.left == nothing) &&
-#                  !isempty(intersect(possible_right_vals(src_tile), possible_left_vals(cand_tile))))
-#             end
-#
-#             if !isempty(dest_tile)
-#                 dest_tile = first(dest_tile)
-#                 match_points = intersect(possible_right_vals(src_tile), possible_left_vals(dest_tile))
-#                 src_tile.right = dest_tile
-#                 dest_tile.left = src_tile
-#
-#                 filter!(perm -> perm.right_edge in match_points, src_tile.remaining_permutations)
-#                 filter!(perm -> perm.left_edge in match_points, dest_tile.remaining_permutations)
-#             else
-#                 src_tile.right = NoTileThere()
-#             end
-#         end
-#     end
-# end
