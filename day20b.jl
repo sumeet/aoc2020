@@ -1881,25 +1881,26 @@ function all_flips(pixels_orig)
 end
 
 function all_rotations_and_flips(pixels)
-    s = []
+    s = Set()
         for flip in all_flips(pixels)
             for rotation in all_rotations(flip)
                 push!(s, rotation)
             end
         end
-    unique(s)
+    s
 end
 
 function all_perms(tile_id, pixels::Pixels)
-    ps = []
+    ps = Set()
     for pixels in all_rotations_and_flips(pixels)
         top_edge = num_from_binary_rep(pixels[1, :])
         bottom_edge = num_from_binary_rep(pixels[10, :])
         left_edge = num_from_binary_rep(pixels[:, 1])
         right_edge = num_from_binary_rep(pixels[:, 10])
-        push!(ps, Perm(tile_id, top_edge, left_edge, right_edge, bottom_edge, pixels))
+        inner_photo = pixels[2:end-1,2:end-1]
+        push!(ps, Perm(tile_id, top_edge, left_edge, right_edge, bottom_edge, inner_photo))
     end
-    unique(ps)
+    ps
 end
 
 global current_tile_id = nothing
@@ -1922,7 +1923,7 @@ struct Perm
     left_edge::Int
     right_edge::Int
     bottom_edge::Int
-    outer_photo::Pixels
+    inner_photo::Pixels
 end
 
 struct NoTileThere
@@ -1975,6 +1976,8 @@ while !isempty(q)
                 println("didn't expect this to happen")
                 exit()
             end
+
+            pushfirst!(q, dest_tile)
         else
             push!(q, this_tile)
         end
