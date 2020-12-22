@@ -1927,6 +1927,7 @@ struct Perm
 end
 
 mutable struct PlacedTile
+    tile_id
     top::Union{PlacedTile,Nothing}
     bottom::Union{PlacedTile,Nothing}
     left::Union{PlacedTile,Nothing}
@@ -1951,7 +1952,7 @@ function possible_right_vals(pt::PlacedTile)
 end
 
 all_placed_tiles = map(photo_parts) do photo_part
-    PlacedTile(nothing, nothing, nothing, nothing, all_perms(photo_part.pixels))
+    PlacedTile(photo_part.tile_id, nothing, nothing, nothing, nothing, all_perms(photo_part.pixels))
 end
 
 function find_one_matching_point(src_possible_vals, dest_possible_vals)
