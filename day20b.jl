@@ -1926,12 +1926,15 @@ struct Perm
     # inner_photo::Pixels
 end
 
+struct NoTileThere
+end
+
 mutable struct PlacedTile
     tile_id
-    top::Union{PlacedTile,Nothing}
-    bottom::Union{PlacedTile,Nothing}
-    left::Union{PlacedTile,Nothing}
-    right::Union{PlacedTile,Nothing}
+    top::Union{PlacedTile,Nothing, NoTileThere}
+    bottom::Union{PlacedTile,Nothing, NoTileThere}
+    left::Union{PlacedTile,Nothing, NoTileThere}
+    right::Union{PlacedTile,Nothing, NoTileThere}
     remaining_permutations::Set{Perm}
 end
 
@@ -1959,12 +1962,16 @@ function find_one_matching_point(src_possible_vals, dest_possible_vals)
     first(intersect(src_possible_vals, dest_possible_vals))
 end
 
-function tiles_with_unresolved_perms(all_placed_tiles)
-    filter(pt -> length(pt.remaining_permutations) > 1, all_placed_tiles)
+function look_for_unresolved_tiles(all_placed_tiles)
+    filter(all_placed_tiles) do pt
+        length(pt.remaining_permutations) > 1 ||
+            nothing in [pt.top, pt.left, pt.bottom, pt.right]
+    end
+    # filter(pt -> length(pt.remaining_permutations) > 1 || , all_placed_tiles)
 end
 
 while true
-    local unresolved_tiles = tiles_with_unresolved_perms(all_placed_tiles)
+    local unresolved_tiles = look_for_unresolved_tiles(all_placed_tiles)
     if isempty(unresolved_tiles)
         break
     end
@@ -1982,6 +1989,8 @@ while true
                 dest_tile.bottom = src_tile
                 filter!(perm -> perm.top_edge == match_point, src_tile.remaining_permutations)
                 filter!(perm -> perm.bottom_edge == match_point, dest_tile.remaining_permutations)
+            else
+                src_tile.top = NoTileThere()
             end
         end
         if src_tile.bottom == nothing
@@ -1999,6 +2008,8 @@ while true
 
                 filter!(perm -> perm.bottom_edge == match_point, src_tile.remaining_permutations)
                 filter!(perm -> perm.top_edge == match_point, dest_tile.remaining_permutations)
+            else
+                src_tile.bottom = NoTileThere()
             end
         end
         if src_tile.left == nothing
@@ -2015,6 +2026,8 @@ while true
 
                 filter!(perm -> perm.left_edge == match_point, src_tile.remaining_permutations)
                 filter!(perm -> perm.right_edge == match_point, dest_tile.remaining_permutations)
+            else
+                src_tile.left = NoTileThere()
             end
         end
         if src_tile.right == nothing
@@ -2031,6 +2044,8 @@ while true
 
                 filter!(perm -> perm.right_edge == match_point, src_tile.remaining_permutations)
                 filter!(perm -> perm.left_edge == match_point, dest_tile.remaining_permutations)
+            else
+                src_tile.right = NoTileThere()
             end
         end
     end
