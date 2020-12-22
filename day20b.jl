@@ -1969,6 +1969,20 @@ function look_for_unresolved_tiles(all_placed_tiles)
     end
 end
 
+function prune_rest_perms!(fn, placed_tiles, ignore_list...)
+    rest_tiles = filter(placed_tiles) do pt
+        for pt_to_ignore in ignore_list
+            if pt_to_ignore === pt
+                return false
+            end
+        end
+        true
+    end
+    for pt in rest_tiles
+        filter!(fn, pt.remaining_permutations)
+    end
+end
+
 while true
     local unresolved_tiles = look_for_unresolved_tiles(all_placed_tiles)
     if isempty(unresolved_tiles)
@@ -1988,6 +2002,9 @@ while true
                 dest_tile.bottom = src_tile
                 filter!(perm -> perm.top_edge == match_point, src_tile.remaining_permutations)
                 filter!(perm -> perm.bottom_edge == match_point, dest_tile.remaining_permutations)
+                # prune_rest_perms!(all_placed_tiles, src_tile, dest_tile) do perm
+                #     perm.top_edge == match_point || perm.bottom_edge == match_point
+                # end
             else
                 src_tile.top = NoTileThere()
             end
